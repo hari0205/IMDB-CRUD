@@ -1,0 +1,16 @@
+# Caches
+__pycache__
+*/__pycache__
+
+# Code extension
+.vscode
+
+# ENV variables
+.env
+.flaskenv
+
+# DB
+instance/
+
+#venv
+beyond
