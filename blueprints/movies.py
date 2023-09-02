@@ -6,7 +6,7 @@ from passlib.hash import pbkdf2_sha256
 from sqlalchemy import or_
 
 from db import db
-
+from cache import cache, custom_movie_key_generator
 
 from schema import (
     MovieResponseSchema,
@@ -28,6 +28,7 @@ blp = Blueprint(
 class Movies(MethodView):
     @jwt_required()
     @blp.response(404, ErrorResponseSchema, description="No movies were found")
+    @cache.cached(timeout=10)  # Change timeout later or set explicitly
     @blp.response(200, PaginatedResponseSchema, description="List of all movies")
     def get(self):
         """Gets all movies in the database
@@ -98,6 +99,7 @@ class Movies(MethodView):
         except Exception as e:
             print("Error", e)
         serialized_movie = MovieResponseSchema().dump(movie)
+        cache.clear()
         return serialized_movie, 201
 
 
@@ -124,6 +126,7 @@ class FetchMovieByName(MethodView):
         if not movie:
             abort(404, message=f"Movie with name {name} not found")
 
+        cache.set(f"movies#{name}", movie, timeout=10)
         return movie
 
     @jwt_required()
@@ -173,6 +176,7 @@ class FetchMovieByName(MethodView):
 
             db.session.commit()
             db.session.refresh(movie)
+            cache.clear()
             return movie
 
     @jwt_required()
@@ -197,6 +201,7 @@ class FetchMovieByName(MethodView):
             abort(404, f"Movie {name} not found")
         db.session.delete(movie)
         db.session.commit()
+        cache.clear()
         return {"message": "Item deleted."}
 
 
@@ -252,6 +257,7 @@ class FetchMovieByID(MethodView):
 
         db.session.commit()
         db.session.refresh(movie)
+        cache.clear()
         return movie
 
     @jwt_required()
@@ -262,6 +268,7 @@ class FetchMovieByID(MethodView):
         movie = MovieModel.query.get_or_404(id)
         db.session.delete(movie)
         db.session.commit()
+        cache.clear()
         return {"message": "Item deleted."}
 
 
@@ -269,6 +276,7 @@ class FetchMovieByID(MethodView):
 class SearchMovies(MethodView):
     @jwt_required()
     @blp.response(404, description="No matching criteria", schema=ErrorResponseSchema)
+    @cache.cached(timeout=100)
     @blp.response(
         200,
         PaginatedResponseSchema,

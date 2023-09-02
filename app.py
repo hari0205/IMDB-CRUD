@@ -1,8 +1,11 @@
 from flask import Flask, jsonify, request
 from flask_smorest import Api
 from flask_migrate import Migrate
-from flask_jwt_extended import JWTManager
+from flask_caching import Cache
+from flask_jwt_extended import JWTManager, jwt_required, get_jwt
+
 from db import db
+from cache import cache
 
 from blueprints.user import blp as UserBlueprint
 from blueprints.admin import blp as AdminBlueprint
@@ -28,8 +31,40 @@ def create_app(db_url=None):
     app.config["PROPAGATE_EXCEPTIONS"] = True
     app.config["JWT_SECRET_KEY"] = "secret"  # Replace later
 
+    app.config["CACHE_TYPE"] = "redis"
+    app.config["CACHE_REDIS_HOST"] = "localhost"  # Redis server host
+    app.config["CACHE_REDIS_PORT"] = 6379  # Redis server port
+    app.config["CACHE_REDIS_DB"] = 0  # Redis database number
+    app.config["CACHE_REDIS_PASSWORD"] = None  # Optional Redis password
+
+    cache.init_app(app)
+    protected_routes = ["/movies"]
     # JWT
     jwt = JWTManager(app)
+
+    @app.before_request
+    def only_admins():
+        for route in protected_routes:
+            if request.path.startswith(route) and request.method in [
+                "POST",
+                "PATCH",
+                "DELETE",
+            ]:
+
+                @jwt_required()
+                def check_admin():
+                    current_user = get_jwt()
+                    if "isAdmin" in current_user and current_user["isAdmin"]:
+                        return None
+                    else:
+                        return (
+                            jsonify(message="Access denied: Admin privileges required"),
+                            403,
+                        )
+
+                res = check_admin()
+                if res is not None:
+                    return res
 
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
@@ -59,29 +94,6 @@ def create_app(db_url=None):
             401,
         )
 
-    # @app.before_request
-    # def jwt_middleware():
-    #     if request.endpoint and request.endpoint in app.view_functions:
-    #         # Check if the endpoint is in the list of protected endpoints
-    #         if request.endpoint in protected_routes:
-    #             # Get the JWT token from the Authorization header
-    #             authorization_header = request.headers.get("Authorization", None)
-    #             if authorization_header is None:
-    #                 return jsonify(message="Authorization header is missing"), 401
-
-    #             parts = authorization_header.split()
-    #             if len(parts) != 2 or parts[0].lower() != "bearer":
-    #                 return jsonify(message="Invalid token format"), 401
-
-    #             token = parts[1]
-
-    #             # Verify the JWT token
-    #             try:
-    #                 identity = jwt.decode_token(token)
-    #                 setattr(request, "current_identity", identity)
-    #             except Exception as e:
-    #                 return jsonify(message="Token is invalid"), 401
-
     db.init_app(app)
 
     # migrate = Migrate(app, db)
@@ -100,3 +112,7 @@ def create_app(db_url=None):
     api.register_blueprint(MovieBlueprint)
 
     return app
+
+
+if __name__ == "__main__":
+    create_app().run()
