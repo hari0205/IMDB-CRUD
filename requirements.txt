@@ -1,6 +1,8 @@
 Flask-JWT-Extended
 Flask-Smorest
 Flask-SQLAlchemy
+Flask-Caching
+redis
 sqlalchemy
 Flask-Migrate
 passlib
