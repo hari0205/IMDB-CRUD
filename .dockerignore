@@ -1,0 +1,14 @@
+### DIRS ###
+
+__pycache__
+
+.vscode
+
+beyond
+
+migrations
+
+instance
+
+### ENVIRONMENT VARS ###
+.env

@@ -1,0 +1,41 @@
+version: '3'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flask-app
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - DB_URL=sqlite:///movies.db
+      - JWT_SECRET=qwertyuiopasdfghjklzxcvbnm123456
+      - CACHE_TYPE=redis
+      - REDIS_HOST=redis-cache
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+    depends_on:
+      - db
+      - redis
+    restart: always
+    command: | 
+        flask run -h 0.0.0.0
+
+  db:
+    image: keinos/sqlite3:latest
+    container_name: sqlite-db
+    volumes:
+      - ./data:/data
+    environment:
+      - SQLITE_DATABASE=/data/movies.db
+
+  redis:
+    image: redis:latest
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_data:/data
+  
