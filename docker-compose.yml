@@ -27,9 +27,9 @@ services:
     image: keinos/sqlite3:latest
     container_name: sqlite-db
     volumes:
-      - ./data:/data
+      - ./db_data:/db_data
     environment:
-      - SQLITE_DATABASE=/data/movies.db
+      - SQLITE_DATABASE=/db_data/movies.db
 
   redis:
     image: redis:latest

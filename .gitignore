@@ -12,6 +12,7 @@ __pycache__
 # DB
 instance/
 redis_data
+db_data
 
 #venv
 beyond
