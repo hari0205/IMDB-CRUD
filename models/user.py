@@ -17,4 +17,4 @@ class UserModel(BaseModel):
     )
 
 
-user_idx = Index("user_index", UserModel.id, UserModel.name, unique=True)
+user_idx = Index("user_index", UserModel.id, UserModel.email, unique=True)
