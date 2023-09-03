@@ -16,7 +16,7 @@ from schema import (
     DeleteResponseSchema,
     PaginatedResponseSchema,
 )
-from models import MovieModel, GenreModel
+from models import MovieModel, GenreModel, UserModel
 
 
 blp = Blueprint(
@@ -26,7 +26,6 @@ blp = Blueprint(
 
 @blp.route("/", methods=["GET", "POST"])
 class Movies(MethodView):
-    @jwt_required()
     @blp.response(404, ErrorResponseSchema, description="No movies were found")
     @cache.cached(timeout=10)  # Change timeout later or set explicitly
     @blp.response(200, PaginatedResponseSchema, description="List of all movies")
@@ -105,7 +104,6 @@ class Movies(MethodView):
 
 @blp.route("<string:name>", methods=["GET", "PATCH", "DELETE"])
 class FetchMovieByName(MethodView):
-    @jwt_required()
     @blp.response(404, ErrorResponseSchema, description="Movie not found")
     @blp.response(200, MovieResponseSchema, description="Movie with given name.")
     def get(self, name):
@@ -207,7 +205,7 @@ class FetchMovieByName(MethodView):
 
 @blp.route("<int:id>", methods=["GET", "PATCH", "DELETE"])
 class FetchMovieByID(MethodView):
-    @jwt_required()
+    @blp.response(404, ErrorResponseSchema)
     @blp.response(200, MovieResponseSchema)
     def get(self, id):
         """Get movie based on ID
@@ -274,7 +272,6 @@ class FetchMovieByID(MethodView):
 
 @blp.route("/search", methods=["GET"])
 class SearchMovies(MethodView):
-    @jwt_required()
     @blp.response(404, description="No matching criteria", schema=ErrorResponseSchema)
     @cache.cached(timeout=100)
     @blp.response(
@@ -337,3 +334,33 @@ class SearchMovies(MethodView):
         }
         serialized_data = PaginatedResponseSchema().dump(res_data)
         return serialized_data
+
+
+@blp.route("/<int:id>/favourite", methods=["POST", "PATCH", "DELETE"])
+class FavoriteMovie(MethodView):
+    @jwt_required()
+    @blp.response(404, ErrorResponseSchema)
+    @blp.response(200, MovieResponseSchema)
+    def post(self, id):
+        """Favourite a movie based on ID
+
+        Args:
+            id (int): ID of the movie
+
+        Returns:
+            MovieResponseSchema: Response movie favourited with given ID.
+        """
+        movie = MovieModel.query.get_or_404(id)
+        user_creds = get_jwt_identity()
+
+        user = UserModel.query.get_or_404(user_creds["id"])
+        if movie not in user.favourite_movies:
+            print("Adding favorite movie to favorites")
+            user.favourite_movies.append(movie)
+        else:
+            abort(400, message="Movie already in favourites.")
+
+        db.session.add(user)
+        db.session.commit()
+
+        return MovieResponseSchema().dump(movie)

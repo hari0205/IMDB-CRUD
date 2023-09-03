@@ -3,13 +3,14 @@ from datetime import timedelta
 from flask import request
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from passlib.hash import pbkdf2_sha256
 
 from db import db
 
 
 from schema import (
+    AboutMeResponseSchema,
     UserLoginSchema,
     UserSchema,
     LoginResponseSchema,
@@ -81,10 +82,21 @@ class UserLogin(MethodView):
 
         if user and pbkdf2_sha256.verify(user_data["password"], user.password):
             access_token = create_access_token(
-                identity=user.email,
+                identity={"email": user.email, "id": user.id},
                 fresh=True,
                 expires_delta=timedelta(hours=1),
             )
             return {"access_token": access_token, "message": "Login successful."}
 
         abort(401, message="Invalid credentials.")
+
+
+@blp.route("/me", methods=["GET"])
+class AboutMe(MethodView):
+    @jwt_required()
+    @blp.response(200, AboutMeResponseSchema)
+    def get(self):
+        user = get_jwt_identity()
+        me = UserModel.query.get_or_404(user["id"])
+        print(me)
+        return AboutMeResponseSchema().dump(me)

@@ -55,11 +55,16 @@ def create_app(db_url=None):
     @app.before_request
     def only_admins():
         for route in protected_routes:
-            if request.path.startswith(route) and request.method in [
-                "POST",
-                "PATCH",
-                "DELETE",
-            ]:
+            if (
+                request.path.startswith(route)
+                and request.method
+                in [
+                    "POST",
+                    "PATCH",
+                    "DELETE",
+                ]
+                and not request.path.endswith("favourite")
+            ):
 
                 @jwt_required()
                 def check_admin():

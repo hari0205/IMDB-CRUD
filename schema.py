@@ -88,3 +88,7 @@ class RegisterAdminResponseSchema(RegisterResponseSchema):
 class LoginAdminResponseSchema(LoginResponseSchema):
     access_token = fields.Str()
     message = fields.Str()
+
+
+class AboutMeResponseSchema(UserSchema):
+    favourite_movies = fields.List(fields.Nested(MovieResponseSchema))

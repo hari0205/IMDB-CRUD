@@ -1,3 +1,4 @@
+from sqlalchemy import Index
 from db import db, movie_genre_association
 
 
@@ -24,3 +25,6 @@ class GenreModel(db.Model):
     movies = db.relationship(
         "MovieModel", secondary=movie_genre_association, back_populates="genres"
     )
+
+
+genre_idx = Index("genre_index", GenreModel.name, unique=True)
