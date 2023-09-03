@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, jsonify
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -336,7 +336,8 @@ class SearchMovies(MethodView):
         return serialized_data
 
 
-@blp.route("/<int:id>/favourite", methods=["POST", "PATCH", "DELETE"])
+@blp.route("/<int:id>/favourite", methods=["POST"])
+@blp.route("/<string:name>/favourite", methods=["DELETE"])
 class FavoriteMovie(MethodView):
     @jwt_required()
     @blp.response(404, ErrorResponseSchema)
@@ -355,7 +356,6 @@ class FavoriteMovie(MethodView):
 
         user = UserModel.query.get_or_404(user_creds["id"])
         if movie not in user.favourite_movies:
-            print("Adding favorite movie to favorites")
             user.favourite_movies.append(movie)
         else:
             abort(400, message="Movie already in favourites.")
@@ -364,3 +364,28 @@ class FavoriteMovie(MethodView):
         db.session.commit()
 
         return MovieResponseSchema().dump(movie)
+
+    @jwt_required()
+    @blp.response(204, DeleteResponseSchema)
+    def delete(self, name):
+        """Delete a movie from favorites
+
+        Args:
+            name (string): Name of the movie to be deleted
+        """
+        name = str(name)
+        user_creds = get_jwt_identity()
+        user = UserModel.query.get_or_404(user_creds["id"])
+
+        to_remove = list(
+            filter(lambda movie: movie.name == name, user.favourite_movies)
+        )
+
+        if not to_remove:
+            abort(404, message=f"Movie '{name}' not found in favorites")
+
+        for movie in to_remove:
+            user.favourite_movies.remove(movie)
+
+        db.session.commit()
+        return None, 204
