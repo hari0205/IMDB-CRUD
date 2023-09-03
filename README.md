@@ -22,7 +22,7 @@ This project requires SQLite and Redis. Connect to an instance running on your l
 -  `flask db init` Initialize migrations
 - `flask db migrate` Apply migrations
 - `flask db upgrade` Run migrations
-
+- or just run `migrate.sh` script with a message. eg. `./migrate.sh "First run"`
 
 ### Method 2: Run using Containers
 - To run containerised application
