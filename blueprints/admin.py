@@ -26,6 +26,8 @@ blp = Blueprint(
 @blp.route("/register")
 class UserRegistration(MethodView):
     @blp.arguments(AdminSchema)
+    @blp.response(409, ErrorResponseSchema, description="Admin already registered")
+    @blp.response(500, ErrorResponseSchema, description="Unexpected error")
     @blp.response(201, description="Admin created", schema=RegisterAdminResponseSchema)
     def post(self, user_data):
         """Create a new admin user
@@ -44,8 +46,12 @@ class UserRegistration(MethodView):
             password=pbkdf2_sha256.hash(user_data["password"]),
             is_admin=True,
         )
-        db.session.add(admin_user)
-        db.session.commit()
+        try:
+            db.session.add(admin_user)
+            db.session.commit()
+        except Exception as e:
+            print("Unexpected exception occured", e)
+            abort(500, message="Unexpected Exception occurred")
 
         return {"message": "Admin created successfully."}, 201
 
@@ -53,7 +59,7 @@ class UserRegistration(MethodView):
 @blp.route("/login", methods=["POST"])
 class UserLogin(MethodView):
     @blp.arguments(AdminLoginSchema)
-    @blp.response(401, ErrorResponseSchema, description="Login failed. Bad credentials")
+    @blp.response(400, ErrorResponseSchema, description="Login failed. Bad credentials")
     @blp.response(200, LoginAdminResponseSchema)
     def post(self, user_data):
         """Route for authenticating an admin user

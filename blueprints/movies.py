@@ -96,7 +96,10 @@ class Movies(MethodView):
             db.session.add(movie)
             db.session.commit()
         except Exception as e:
-            print("Error", e)
+            print("Error: Unexpected error occurred ", e)
+            db.session.rollback()
+            abort(500, message="Unexpected error occurred ")
+
         serialized_movie = MovieResponseSchema().dump(movie)
         cache.clear()
         return serialized_movie, 201
@@ -133,6 +136,7 @@ class FetchMovieByName(MethodView):
         403, ErrorResponseSchema, description="No privileges to update movies"
     )
     @blp.response(404, ErrorResponseSchema, description="Movie not found")
+    @blp.response(500, ErrorResponseSchema, description="Unexpected error")
     @blp.response(200, MovieResponseSchema, description="Updated movie")
     def patch(self, update_data, name):
         """Update movie details
@@ -171,14 +175,19 @@ class FetchMovieByName(MethodView):
                     new_genre = GenreModel(name=genre_name.strip())
                     db.session.add(new_genre)
                     movie.genres.append(new_genre)
-
-            db.session.commit()
-            db.session.refresh(movie)
+            try:
+                db.session.commit()
+                db.session.refresh(movie)
+            except Exception as e:
+                print("Error: Unexpected error occurred ", e)
+                db.session.rollback()
+                abort(500, message="Unexpected error occurred ")
             cache.clear()
             return movie
 
     @jwt_required()
     @blp.response(404, ErrorResponseSchema, description="Movie not found.")
+    @blp.response(500, ErrorResponseSchema, description="Unexpected Error")
     @blp.response(204, DeleteResponseSchema, description="Movie deleted successfully")
     def delete(self, name):
         """Delete a movie from the database
@@ -197,16 +206,22 @@ class FetchMovieByName(MethodView):
 
         if not movie:
             abort(404, f"Movie {name} not found")
-        db.session.delete(movie)
-        db.session.commit()
+        try:
+            db.session.delete(movie)
+            db.session.commit()
+        except Exception as e:
+            print("Error: Unexpected Error occurred")
+            db.session.rollback()
+            abort(500, message="Unexpected Error occurred")
+
         cache.clear()
         return {"message": "Item deleted."}
 
 
 @blp.route("<int:id>", methods=["GET", "PATCH", "DELETE"])
 class FetchMovieByID(MethodView):
-    @blp.response(404, ErrorResponseSchema)
-    @blp.response(200, MovieResponseSchema)
+    @blp.response(404, ErrorResponseSchema, description="Movie with ID not found")
+    @blp.response(200, MovieResponseSchema, description="Movie response")
     def get(self, id):
         """Get movie based on ID
 
@@ -219,7 +234,9 @@ class FetchMovieByID(MethodView):
         return MovieModel.query.get_or_404(id)
 
     @blp.arguments(UpdateMoviesSchema)
-    @blp.response(200, MovieResponseSchema)
+    @blp.response(404, ErrorResponseSchema, description="Movie with ID not found")
+    @blp.response(500, ErrorResponseSchema, description="Unexpected error")
+    @blp.response(200, MovieResponseSchema, description="Movie updated")
     @jwt_required()
     def patch(self, update_data, id):
         """Update a Movie
@@ -253,19 +270,30 @@ class FetchMovieByID(MethodView):
                     db.session.add(new_genre)
                     movie.genres.append(new_genre)
 
-        db.session.commit()
-        db.session.refresh(movie)
+        try:
+            db.session.commit()
+            db.session.refresh(movie)
+        except Exception as e:
+            print("Error: Unexpected exception occurred ", e)
+            db.session.rollback()
+            abort(500, message="Unexpected exception occurred")
+
         cache.clear()
         return movie
 
     @jwt_required()
-    @blp.response(404, ErrorResponseSchema)
-    @blp.response(204, DeleteResponseSchema)
+    @blp.response(404, ErrorResponseSchema, description="Movie not found")
+    @blp.response(500, ErrorResponseSchema, description="Unexpected error")
+    @blp.response(204, DeleteResponseSchema, description="Movie deleted")
     def delete(self, id):
         """Delete a  movie from the database"""
         movie = MovieModel.query.get_or_404(id)
-        db.session.delete(movie)
-        db.session.commit()
+        try:
+            db.session.delete(movie)
+            db.session.commit()
+        except Exception as e:
+            print("Unexpected exception occurred ", e)
+            db.session.rollback()
         cache.clear()
         return {"message": "Item deleted."}
 

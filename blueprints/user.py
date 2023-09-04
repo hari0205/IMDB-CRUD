@@ -29,12 +29,13 @@ blp = Blueprint(
 class UserRegistration(MethodView):
     @blp.arguments(UserSchema)
     @blp.response(
-        201, RegisterResponseSchema, description="User registration successful"
-    )
-    @blp.response(
         409,
-        RegisterResponseSchema,
+        ErrorResponseSchema,
         description="User registration failed. Duplicate entry",
+    )
+    @blp.response(500, ErrorResponseSchema, description="Unexpected Error")
+    @blp.response(
+        201, RegisterResponseSchema, description="User registration successful"
     )
     def post(self, user_data):
         """Create a new user.
@@ -52,8 +53,12 @@ class UserRegistration(MethodView):
             email=user_data["email"],
             password=pbkdf2_sha256.hash(user_data["password"]),
         )
-        db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.add(user)
+            db.session.commit()
+        except Exception as e:
+            print("Error: Unexpected Exception occurred ", e)
+            abort(500, message="Unexpected error occured")
 
         return {"message": "User created successfully."}, 201
 
@@ -94,9 +99,9 @@ class UserLogin(MethodView):
 @blp.route("/me", methods=["GET"])
 class AboutMe(MethodView):
     @jwt_required()
-    @blp.response(200, AboutMeResponseSchema)
+    @blp.response(401, ErrorResponseSchema, description="Invalid credentials")
+    @blp.response(200, AboutMeResponseSchema, description="Profile information of user")
     def get(self):
         user = get_jwt_identity()
         me = UserModel.query.get_or_404(user["id"])
-        print(me)
         return AboutMeResponseSchema().dump(me)
